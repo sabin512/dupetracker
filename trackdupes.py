@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from collections import defaultdict
 import sys
 import hashlib
 from pathlib import Path
@@ -18,7 +19,7 @@ def get_file_hash(file_path):
 
 class DupeTracker():
     def __init__(self,suffix=None, verbose=None):
-        self.file_map = {}
+        self.file_map = defaultdict(list)
         self.suffix = suffix
         self.verbose = verbose
 
@@ -29,10 +30,7 @@ class DupeTracker():
             print('Scanning file ' + file_to_map.as_posix())
 
         file_hash = get_file_hash(file_to_map.as_posix())
-        if file_hash in self.file_map:
-            self.file_map[file_hash].append(file_to_map.as_posix())
-        else:
-            self.file_map[file_hash] = [file_to_map.as_posix()]
+        self.file_map[file_hash].append(file_to_map.as_posix())
 
     def scan_dir(self, directory=None, root=True):
         path = Path(directory) if directory else Path.cwd()
@@ -73,11 +71,11 @@ class DupeTracker():
 
     def print_dupe_report(self):
         print('The following duplicate files have been found:')
-        for file_hash in self.file_map:
-            if len(self.file_map[file_hash]) == 1:
+        for file_hash, dupe_list in self.file_map.items():
+            if len(dupe_list) == 1:
                 continue
             print('\nHash %s is repeated in:' % file_hash)
-            print('    ' + '\n    '.join(self.file_map[file_hash]))
+            print('    ' + '\n    '.join(dupe_list))
             
 def main():
     parser = argparse.ArgumentParser()
