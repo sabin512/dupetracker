@@ -1,82 +1,35 @@
 #!/usr/bin/python3
-from collections import defaultdict
-import sys
-import hashlib
-from pathlib import Path
-from datetime import datetime 
 import argparse
+import sys
 
-BLOCKSIZE = 65536
-def get_file_hash(file_path):
-    hasher = hashlib.sha256()
-    with open(file_path, 'rb') as f:
-        buf = f.read(BLOCKSIZE)
-        while len(buf) > 0:
-            hasher.update(buf)
-            buf = f.read(BLOCKSIZE)
-    return hasher.hexdigest()
+from dupeutils import NullOutput
+from dupetracker import DupeTracker
 
+def print_dupe_report(dupe_map, output=NullOutput()):
+    output.show_message('The following duplicate files have been found:')
+    
+    for file_hash, dupe_list in dupe_map.items():
+        if len(dupe_list) == 1:
+            continue
+        output.show_message('\nHash %s is repeated in:' % file_hash)
+        output.show_message('    ' + '\n    '.join(dupe_list))
 
-class DupeTracker():
-    def __init__(self,suffix=None, verbose=None):
-        self.file_map = defaultdict(list)
-        self.suffix = suffix
+#this could probably be logger, but the dream is that one day all this is redirected into a GUI
+class ConsoleOutput():
+    def __init__(self, verbose=None):
         self.verbose = verbose
 
-    def map_file(self, file_to_map):
-        if self.suffix and file_to_map.suffix.lower() != self.suffix.lower():
-            return
+    def show_message(self, message):
+        print(message)
+
+    def show_verbose_message(self, message):
         if self.verbose:
-            print('Scanning file ' + file_to_map.as_posix())
+            print(message)
 
-        file_hash = get_file_hash(file_to_map.as_posix())
-        self.file_map[file_hash].append(file_to_map.as_posix())
-
-    def scan_dir(self, directory=None, root=True):
-        path = Path(directory) if directory else Path.cwd()
-
-        if root:
-            print('Scanning %s for duplicate %s files' % (path.as_posix(), self.suffix))
-            print('Press Control+C to cancel')
-            start_time = datetime.now()
-
-        for child in path.iterdir():
-            if child.is_dir():
-                self.scan_dir(child, root=False)
-            else:
-                self.map_file(child)
-
+    def update_progress(self):
         if not self.verbose:
-            print('.', end='',flush=True)
+            print('.', end='', flush=True)
 
-        if root:
-            elapsed_seconds = (datetime.now() - start_time).total_seconds()
-            print('\nScanning %s took %s seconds' % (path.as_posix(), elapsed_seconds))
-
-    def trim_file_map(self):
-        print('Cleaning up file map with %s hashes' % len(self.file_map))
-        single_hashes = []
-        for file_hash in self.file_map:
-            if len(self.file_map[file_hash]) == 1:
-                single_hashes.append(file_hash)
-
-        for single_hash in single_hashes:
-            del self.file_map[single_hash]
-
-        # list comprehensions seem fancier, yet I still find they impact readability
-        #[single_hashes.append(file_hash) for file_hash in file_map if len(file_map[file_hash]) == 1]
-        #[del file_map[single_hash] for single_hash in single_hashes]
-
-        print('File map now has %s hashes' % len(self.file_map))
-
-    def print_dupe_report(self):
-        print('The following duplicate files have been found:')
-        for file_hash, dupe_list in self.file_map.items():
-            if len(dupe_list) == 1:
-                continue
-            print('\nHash %s is repeated in:' % file_hash)
-            print('    ' + '\n    '.join(dupe_list))
-            
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--extension', help='Extension to scan for')
@@ -85,11 +38,12 @@ def main():
                         action='store_true', help='List all the files being scanned')
     args = parser.parse_args()
     
-    tracker = DupeTracker(args.extension, args.verbose)
+    output = ConsoleOutput(args.verbose)
+    tracker = DupeTracker(args.extension, output)
     tracker.scan_dir(args.directory)
     print()
-    #tracker.trim_file_map()
-    tracker.print_dupe_report()
+    #tracker.trim_dupe_map()
+    print_dupe_report(tracker.dupe_map, output)
 
 if __name__ == '__main__':
     try:
