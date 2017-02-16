@@ -17,14 +17,17 @@ def get_file_hash(file_path):
 
 
 class DupeTracker():
-    def __init__(self,suffix=None):
+    def __init__(self,suffix=None, verbose=None):
         self.file_map = {}
         self.suffix = suffix
+        self.verbose = verbose
 
     def map_file(self, file_to_map):
         if self.suffix and file_to_map.suffix.lower() != self.suffix.lower():
             return
-        #print('Mapping file ' + file_to_map.as_posix())
+        if self.verbose:
+            print('Scanning file ' + file_to_map.as_posix())
+
         file_hash = get_file_hash(file_to_map.as_posix())
         if file_hash in self.file_map:
             self.file_map[file_hash].append(file_to_map.as_posix())
@@ -78,18 +81,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--extension', help='Extension to scan for')
     parser.add_argument('-d', '--directory', help='Root of the directories to scan')
+    parser.add_argument('-v', '--verbose', 
+                        action='store_true', help='List all the files being scanned')
     args = parser.parse_args()
     
-    directory = None
-    extension  = None
-
-    if args.directory:
-        directory = args.directory
-    if args.extension:
-        extension = args.extension
-
-    tracker = DupeTracker(extension)
-    tracker.scan_dir(directory)
+    tracker = DupeTracker(args.extension, args.verbose)
+    tracker.scan_dir(args.directory)
     print()
     #tracker.trim_file_map()
     tracker.print_dupe_report()
