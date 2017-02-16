@@ -47,7 +47,9 @@ class DupeTracker():
                 self.scan_dir(child, root=False)
             else:
                 self.map_file(child)
-        print('.', end='',flush=True)
+
+        if not self.verbose:
+            print('.', end='',flush=True)
 
         if root:
             elapsed_seconds = (datetime.now() - start_time).total_seconds()
